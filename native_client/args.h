@@ -42,7 +42,7 @@ void PrintHelp(const char* bin)
     "	-t			Run in benchmark mode, output mfcc & inference time\n"
     "	--help			Show help\n"
     "	--version		Print version and exits\n";
-    print_versions();
+    DS_PrintVersions();
     exit(1);
 }
 
@@ -112,7 +112,7 @@ bool ProcessArgs(int argc, char** argv)
     }
 
     if (has_versions) {
-        print_versions();
+        DS_PrintVersions();
         return false;
     }
 

@@ -25,22 +25,20 @@
 #define WORD_COUNT_WEIGHT 1.00f
 #define VALID_WORD_COUNT_WEIGHT 1.00f
 
-using namespace DeepSpeech;
-
 typedef struct {
   const char* string;
   double cpu_time_overall;
 } ds_result;
 
 ds_result
-LocalDsSTT(Model& aCtx, const short* aBuffer, size_t aBufferSize,
+LocalDsSTT(ModelState* aCtx, short* aBuffer, size_t aBufferSize,
            int aSampleRate)
 {
   ds_result res = {0};
 
   clock_t ds_start_time = clock();
 
-  res.string = aCtx.stt(aBuffer, aBufferSize, aSampleRate);
+  res.string = DS_SpeechToText(aCtx, aBuffer, aBufferSize, aSampleRate);
 
   clock_t ds_end_infer = clock();
 
@@ -163,7 +161,7 @@ GetAudioBuffer(const char* path)
 }
 
 void
-ProcessFile(Model& context, const char* path, bool show_times)
+ProcessFile(ModelState* context, const char* path, bool show_times)
 {
   ds_audio_buffer audio = GetAudioBuffer(path);
 
@@ -171,7 +169,7 @@ ProcessFile(Model& context, const char* path, bool show_times)
   // We take half of buffer_size because buffer is a char* while
   // LocalDsSTT() expected a short*
   ds_result result = LocalDsSTT(context,
-                                (const short*)audio.buffer,
+                                (short*)audio.buffer,
                                 audio.buffer_size / 2,
                                 audio.sample_rate);
   free(audio.buffer);
@@ -195,16 +193,20 @@ main(int argc, char **argv)
   }
 
   // Initialise DeepSpeech
-  Model ctx = Model(model.c_str(), N_CEP, N_CONTEXT, alphabet.c_str(), BEAM_WIDTH);
+  ModelState* ctx;
+  int status = DS_CreateModel(model.c_str(), N_CEP, N_CONTEXT, alphabet.c_str(), BEAM_WIDTH);
+  if (status != 0) {
+    return 1;
+  }
 
   if (lm.length() > 0 && trie.length() > 0) {
-    ctx.enableDecoderWithLM(
-		    alphabet.c_str(),
-		    lm.c_str(),
-		    trie.c_str(),
-		    LM_WEIGHT,
-		    WORD_COUNT_WEIGHT,
-		    VALID_WORD_COUNT_WEIGHT);
+    DS_EnableDecoderWithLM(
+        alphabet.c_str(),
+        lm.c_str(),
+        trie.c_str(),
+        LM_WEIGHT,
+        WORD_COUNT_WEIGHT,
+        VALID_WORD_COUNT_WEIGHT);
   }
 
   // Initialise SOX
@@ -249,6 +251,8 @@ main(int argc, char **argv)
 
   // Deinitialise and quit
   sox_quit();
+
+  DS_DestroyModel(ctx);
 
   return 0;
 }
